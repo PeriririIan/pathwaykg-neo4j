@@ -1,11 +1,13 @@
 # Knowledge graphs of KEGG pathways
 
-Build and query RDF or Neo4j knowledge graphs from the KEGG database. Each entity and relationship carries `map_id` metadata indicating which pathway it belongs to, enabling cross-pathway analysis.
+Build and query Neo4j knowledge graphs from the KEGG database. Each entity and relationship carries `map_ids[]` metadata indicating which pathway(s) it belongs to, enabling cross-pathway analysis.
+
+> This project is based on [pathwaykg](https://github.com/eascarrunz/pathwaykg) but migrated to Neo4j as the primary storage and query engine.
 
 ## Installation
 
 ```bash
-git clone https://github.com/eascarrunz/pathwaykg
+git clone https://github.com/PeriwigXu/pathwaykg
 cd pathwaykg
 uv sync
 ```
@@ -18,7 +20,7 @@ Start a Neo4j container for local development:
 docker compose up -d
 ```
 
-Configure connection in `.env` (copy from `.env.example`):
+Configure connection in `.env`:
 
 ```
 NEO4J_URI=bolt://localhost:7687
@@ -29,7 +31,7 @@ NEO4J_DATABASE=neo4j
 
 ## Building knowledge graphs
 
-### Single pathway to Neo4j
+### Single pathway import
 
 ```bash
 uv run kgbuild neo4j import -p hsa00010
@@ -43,12 +45,6 @@ uv run kgbatch list-pathways -o hsa
 
 # Import all human pathways
 uv run kgbatch batch -o hsa
-```
-
-### Export to Turtle (RDF)
-
-```bash
-uv run kgbuild ttl -p hsa00010 > hsa00010.ttl
 ```
 
 ## Data model
@@ -98,12 +94,15 @@ WHERE 'hsa00010' IN c.map_ids AND 'hsa00020' IN c.map_ids
 RETURN c.kegg_id, c.map_ids
 ```
 
-## Visualization
-
-Generate an interactive HTML visualization from a Turtle file:
+## Management commands
 
 ```bash
-uv run visualize -i hsa00010.ttl > hsa00010.html
-```
+# Show Neo4j configuration
+uv run kgbuild neo4j config --show
 
-See live examples at https://eascarrunz.github.io/pathwaykg/examples/
+# Validate Neo4j connection
+uv run kgbuild neo4j config --validate
+
+# Clear database before import
+uv run kgbuild neo4j import -p hsa00010 --clear
+```
