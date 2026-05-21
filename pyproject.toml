@@ -1,7 +1,7 @@
 [project]
 name = "pathwaykg"
-version = "0.2.0"
-description = "Build and plot RDF knowledge graphs of pathways from the KEGG database"
+version = "0.3.0"
+description = "Build and query Neo4j knowledge graphs from KEGG pathway data"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -16,8 +16,6 @@ dependencies = [
 
 [project.scripts]
 kgbuild = "pathwaykg.build:main"
-visualize = "pathwaykg.visualize:main"
-kgimport = "pathwaykg.neo4j_adapter:main"
 kgbatch = "pathwaykg.batch:main"
 
 [tool.uv]
@@ -26,4 +24,4 @@ package = true
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["pathwaykg*"]
-exclude = ["assets*", "examples*", "neo4j_data*", "neo4j_logs*", "neo4j_import*"]
+exclude = ["neo4j_data*", "neo4j_logs*", "neo4j_import*"]

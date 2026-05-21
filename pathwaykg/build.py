@@ -141,21 +141,15 @@ def cli():
     pass
 
 
-@cli.group()
-def neo4j():
-    """Build and import to Neo4j"""
-    pass
-
-
-@neo4j.command("import")
+@cli.command()
 @click.option("--pathway", "-p", required=True, help="KEGG pathway entry (e.g., hsa00010)")
 @click.option("--uri", help="Neo4j URI (overrides .env)")
 @click.option("--user", help="Neo4j user (overrides .env)")
 @click.option("--password", help="Neo4j password (overrides .env)")
 @click.option("--database", help="Neo4j database (overrides .env)")
 @click.option("--clear", is_flag=True, help="Clear database before import")
-def neo4j_import(pathway, uri, user, password, database, clear):
-    """Build and import pathway to Neo4j"""
+def import_cmd(pathway, uri, user, password, database, clear):
+    """Import pathway to Neo4j"""
     load_dotenv()
 
     try:
@@ -192,10 +186,10 @@ def neo4j_import(pathway, uri, user, password, database, clear):
     adapter.close()
 
 
-@neo4j.command("config")
+@cli.command()
 @click.option("--show", is_flag=True, help="Show current Neo4j configuration from .env")
 @click.option("--validate", is_flag=True, help="Validate Neo4j connection using .env config")
-def neo4j_config(show, validate):
+def config(show, validate):
     """Manage Neo4j configuration from .env file"""
     load_dotenv()
 
