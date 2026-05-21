@@ -11,9 +11,8 @@ import click
 from tqdm import tqdm
 from Bio.KEGG import REST
 
-import pathwaykg.namespaces as ns
 from pathwaykg.fetch import fetch_pathway_kgml, parse_kgml, KGMLData, fetch_reaction_records, fetch_compound_records
-from pathwaykg.build import build_kg, validate_pathway, add_reaction, add_compound
+from pathwaykg.build import kg_to_ttl, validate_pathway
 from pathwaykg.neo4j_adapter import Neo4jAdapter, Neo4jConfig
 
 
@@ -32,7 +31,7 @@ def list_organism_pathways(organism: str) -> list[tuple[str, str]]:
 
 @click.group()
 def cli():
-    """Build RDF knowledge graphs from KEGG data"""
+    """Build KEGG pathway knowledge graphs and import to Neo4j"""
     pass
 
 
@@ -89,7 +88,7 @@ def batch(organism, uri, user, password, database, clear):
         full_pathway = f"{organism}{pathway_id}"
         try:
             kgml_data = parse_kgml(fetch_pathway_kgml(organism, pathway_id))
-            graph = build_kg(organism, kgml_data)
+            graph = kg_to_ttl(kgml_data, full_pathway)
 
             ttl_path = Path(tempfile.gettempdir()) / f"{full_pathway}.ttl"
             graph.serialize(ttl_path, format="turtle", encoding='utf-8')
