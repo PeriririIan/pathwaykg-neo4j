@@ -65,6 +65,7 @@ def parse_kgml(handle: TextIO) -> KGMLData:
                     reaction_ids = [s.split(':')[-1] for s in reaction_string.split()]
                     for ko_id in ortholog_ids:
                         data.ko_reactions.setdefault(ko_id, set()).update(reaction_ids)
+                    data.reaction_ids.update(reaction_ids)
             case "compound":
                 data.compound_ids.update([s.split(':')[-1] for s in entry_ids])
 
