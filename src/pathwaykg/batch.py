@@ -29,6 +29,19 @@ def list_organism_pathways(organism: str) -> list[tuple[str, str]]:
     return pathways
 
 
+def list_ko_pathways() -> list[tuple[str, str]]:
+    """List all KO reference pathways. Returns list of (pathway_id, name)"""
+    response = REST.kegg_list("pathway", "ko")
+    pathways = []
+    for line in response.read().splitlines():
+        if line:
+            parts = line.split("\t")
+            if len(parts) == 2:
+                pathway_id = parts[0].replace("ko", "")
+                pathways.append((pathway_id, parts[1]))
+    return pathways
+
+
 @click.group()
 def cli():
     """Build KEGG pathway knowledge graphs and import to Neo4j"""
@@ -47,12 +60,8 @@ def list_pathways(organism):
 
 @cli.command()
 @click.option("--organism", "-o", required=True, help="Organism code (e.g., hsa, eco, sce)")
-@click.option("--uri", help="Neo4j URI (overrides .env)")
-@click.option("--user", help="Neo4j user (overrides .env)")
-@click.option("--password", help="Neo4j password (overrides .env)")
-@click.option("--database", help="Neo4j database (overrides .env)")
 @click.option("--clear", is_flag=True, help="Clear database before import")
-def batch(organism, uri, user, password, database, clear):
+def batch(organism, clear):
     """Import all pathways for an organism to Neo4j"""
     load_dotenv()
 
@@ -64,10 +73,10 @@ def batch(organism, uri, user, password, database, clear):
     click.echo(f"Found {len(pathways)} pathways for {organism}")
 
     config = Neo4jConfig(
-        uri=uri or os.getenv("NEO4J_URI", "bolt://localhost:7687"),
-        user=user or os.getenv("NEO4J_USER", "neo4j"),
-        password=password or os.getenv("NEO4J_PASSWORD", "password"),
-        database=database or os.getenv("NEO4J_DATABASE", "neo4j")
+        uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+        user=os.getenv("NEO4J_USER", "neo4j"),
+        password=os.getenv("NEO4J_PASSWORD", "password"),
+        database=os.getenv("NEO4J_DATABASE", "neo4j")
     )
 
     adapter = Neo4jAdapter(config)
@@ -112,6 +121,65 @@ def batch(organism, uri, user, password, database, clear):
             click.echo(f"  {pathway}: {error}")
     else:
         click.echo("All pathways imported successfully!")
+
+
+@cli.command()
+@click.option("--clear", is_flag=True, help="Clear database before import")
+def ko_batch(clear):
+    """Import all KO reference pathways to Neo4j"""
+    load_dotenv()
+
+    pathways = list_ko_pathways()
+    click.echo(f"Found {len(pathways)} KO reference pathways")
+
+    config = Neo4jConfig(
+        uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+        user=os.getenv("NEO4J_USER", "neo4j"),
+        password=os.getenv("NEO4J_PASSWORD", "password"),
+        database=os.getenv("NEO4J_DATABASE", "neo4j")
+    )
+
+    adapter = Neo4jAdapter(config)
+    adapter.connect()
+
+    if clear:
+        click.echo("Clearing database...")
+        adapter.clear_database()
+
+    click.echo("Creating indexes...")
+    adapter.create_indexes()
+
+    total_nodes = 0
+    total_rels = 0
+    failed = []
+
+    for pathway_id, name in tqdm(pathways, desc="Importing KO pathways"):
+        full_pathway = f"ko{pathway_id}"
+        try:
+            kgml_data = parse_kgml(fetch_pathway_kgml("ko", pathway_id))
+            graph = kg_to_ttl(kgml_data, full_pathway)
+
+            ttl_path = Path(tempfile.gettempdir()) / f"{full_pathway}.ttl"
+            graph.serialize(ttl_path, format="turtle", encoding='utf-8')
+
+            nodes, rels = adapter.import_from_ttl(ttl_path, full_pathway)
+            total_nodes += nodes
+            total_rels += rels
+
+            ttl_path.unlink(missing_ok=True)
+        except Exception as e:
+            failed.append((full_pathway, str(e)))
+            tqdm.write(f"[FAIL] {full_pathway}: {e}")
+
+    adapter.close()
+
+    click.echo(f"\nImport complete: {total_nodes} nodes, {total_rels} relationships")
+    if failed:
+        click.echo(f"Failed pathways: {len(failed)}")
+        for pathway, error in failed:
+            click.echo(f"  {pathway}: {error}")
+    else:
+        click.echo("All KO pathways imported successfully!")
 
 
 def main():
